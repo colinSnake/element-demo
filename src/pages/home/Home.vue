@@ -1,68 +1,73 @@
 <template>
     <div class="home">
-        <el-header>SegmentFault</el-header>
+        <el-col :span="24" class="header">
+			<el-col :span="10" class="logo" :class="isCollapse ? 'logo-collapse-width' : 'logo-width'">
+				{{isCollapse ? '' : sysName}}
+			</el-col>
+			<el-col :span="10">
+				<div class="tools" @click.prevent="handleSwitch">
+					<img src="../../assets/align-justify.png">
+				</div>
+			</el-col>
+			<el-col :span="4" class="userinfo">
+				<el-dropdown trigger="hover">
+					<span class="el-dropdown-link userinfo-inner">欢迎您，{{sysUserName}}<img src="../../assets/pikachu.png" /></span>
+					<el-dropdown-menu slot="dropdown">
+						<el-dropdown-item>我的消息</el-dropdown-item>
+						<el-dropdown-item>设置</el-dropdown-item>
+						<el-dropdown-item divided @click.native="loginOut">退出登录</el-dropdown-item>
+					</el-dropdown-menu>
+				</el-dropdown>
+			</el-col>
+		</el-col>
         <el-container style="height: 887px; border: 1px solid #eee">
-            <el-aside width="200px" style="backgroundColor: #eef6f6">
-                <el-menu
-                    default-active="1"
-                    class="el-menu-vertical-demo"
-                    @open="handleOpen"
-                    @close="handleClose"
-                    background-color="#18c79c"
-                    text-color="#fff"
-                    active-text-color="#ffd04b">
-                    <el-submenu index="1">
-                        <template slot="title">
-                        <i class="el-icon-location"></i>
-                        <span>导航一</span>
+            <aside style="backgroundColor: #eef6f6;">
+                <!-- 加动画来解决切换显示问题 -->
+                <transition name="fade" mode="out-in">
+                    <el-menu 
+                        :default-active="$route.path" 
+                        :class="isCollapse ? 'el-menu--collapse' : 'el-menu-vertical-demo'" 
+                        @open="handleOpen"
+                        @close="handleClose" 
+                        router
+                        unique-opened
+                        :collapse="isCollapse"
+                        style="backgroundColor: #eef6f6"
+                        active-text-color="#18c79c"
+                    >
+                        <template 
+                            v-for="(item,index) in navs"
+                        >
+                            <el-submenu 
+                                :index="index+''" 
+                                :key="index"
+                            >
+                                <template slot="title"><i :class="item.iconCls"></i>{{isCollapse ? '' : item.name}}</template>
+                                <el-menu-item v-for="child in item.children" :index="child.path" :key="child.path">
+                                    {{child.name}}
+                                </el-menu-item>
+                            </el-submenu>
                         </template>
-                        <el-menu-item-group>
-                        <template slot="title">分组一</template>
-                        <el-menu-item index="1-1">选项1</el-menu-item>
-                        <el-menu-item index="1-2">选项2</el-menu-item>
-                        </el-menu-item-group>
-                        <el-menu-item-group title="分组2">
-                        <el-menu-item index="1-3">选项3</el-menu-item>
-                        </el-menu-item-group>
-                        <el-submenu index="1-4">
-                        <template slot="title">选项4</template>
-                        <el-menu-item index="1-4-1">选项1</el-menu-item>
-                        </el-submenu>
-                    </el-submenu>
-                    <el-menu-item index="2">
-                        <i class="el-icon-menu"></i>
-                        <span slot="title">导航二</span>
-                    </el-menu-item>
-                    <el-menu-item index="3">
-                        <i class="el-icon-document"></i>
-                        <span slot="title">导航三</span>
-                    </el-menu-item>
-                    <el-menu-item index="4">
-                        <i class="el-icon-setting"></i>
-                        <span slot="title">导航四</span>
-                    </el-menu-item>
                     </el-menu>
-            </el-aside>
-        
+                </transition>
+            </aside>
             <el-container>
-                <el-header class="second-nav">
-                    当前位置是xxx
+                <el-header 
+                    class="second-nav"
+                >
+                    <strong>{{$route.name}}</strong>
+                    <el-breadcrumb separator="/">
+                        <el-breadcrumb-item
+                            v-for="(item,index) in $route.matched"
+                            :key="index"
+                        >
+                            {{item.name}}
+                        </el-breadcrumb-item>
+                    </el-breadcrumb>
                 </el-header>
-                <el-header class="handlemodel">
-                    <el-input v-model="input" placeholder="请输入内容" size="small" style="width: 200px;"></el-input>    
-                    <el-button type="success" size="small">查询</el-button>
-                    <el-button type="success" size="small">新增</el-button>
-                </el-header>
-                <el-main>
-                    <el-table :data="tableData">
-                    <el-table-column prop="date" label="日期" width="140">
-                    </el-table-column>
-                    <el-table-column prop="name" label="姓名" width="120">
-                    </el-table-column>
-                    <el-table-column prop="address" label="地址">
-                    </el-table-column>
-                    </el-table>
-                </el-main>
+                <transition name="fade" mode="out-in">
+                    <router-view></router-view>
+                </transition>
             </el-container>
         </el-container>
         <el-footer>
@@ -76,22 +81,43 @@
     export default {
         name: 'Home',
         data(){
-            const item = {
-                date: '2016-05-02',
-                name: '王小虎',
-                address: '上海市普陀区金沙江路 1518 弄'
-                };
             return {
-                    tableData: Array(20).fill(item),
-                    input: ''
+                    navs: this.$router.options.routes.filter(item => !item.hidden),
+                    isCollapse: false,
+                    sysName:'SegmentFault',
+                    sysUserName: '',
+                    sysUserAvatar: '',
                 }
+        },
+        created(){
+            // 获取用户名和头像
+            let user = JSON.parse(sessionStorage.getItem('user'))
+            this.sysUserName = user.userName || ''
+            this.sysUserAvatar = user.avatar || ''
         },
         methods:{
             handleOpen(){
-
+                
             },
             handleClose(){
-
+                
+            },
+            // 折叠导航栏
+            handleSwitch(){
+                this.isCollapse = !this.isCollapse
+            },
+            loginOut(){
+                this.$confirm('确认退出吗？','提示',{
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    // type: 'warning'
+                }).then(() => {
+                    sessionStorage.removeItem('user');
+                    this.$router.push({path: '/admin/login'})
+                }).catch(error => {
+                    console.log(error)
+                })
+                
             }
         }
     }
@@ -99,23 +125,90 @@
 
 <style lang="scss">
     .home{
-        .el-header {
-            background-color: #18c79c;
-            line-height: 60px;
-            color: #fff;
-            font-size: 20px;
+        .header {
+			height: 60px;
+			line-height: 60px;
+			background-color: #18c79c;
+			color:#fff;
+			.userinfo {
+                height: 60px;
+				text-align: right;
+				padding-right: 35px;
+				float: right;
+				.userinfo-inner {
+					cursor: pointer;
+					color:#fff;
+                    margin-left: 130px; 
+                    display: flex;
+                    align-items: center;
+					img {
+						width: 40px;
+						height: 40px;
+						border-radius: 50%;
+                        background-color: #fff;
+                        margin-left: 10px; 
+					}
+				}
+			}
+			.logo {
+				height:60px;
+				font-size: 22px;
+				padding-left:20px;
+				padding-right:20px;
+				border-color: rgba(238,241,146,0.3);
+				border-right-width: 1px;
+				border-right-style: solid;
+				img {
+					width: 40px;
+					float: left;
+					margin: 10px 10px 10px 18px;
+				}
+				.txt {
+					color:#fff;
+				}
+			}
+			.logo-width{
+				width: 201px;
+			}
+			.logo-collapse-width{
+				width: 66px
+			}
+			.tools{
+				padding: 0px 23px;
+				width:14px;
+				height: 60px;
+				line-height: 60px;
+				cursor: pointer;
+                img{
+                    width: 25px;
+                    height: 25px;
+                }
+			}
+		}
+        // 不折叠的宽度
+        .el-menu-vertical-demo:not(.el-menu--collapse) {
+            width: 200px;
+            min-height: 400px;
         }
         .second-nav{
+            // width: 100%;
             background-color: #fff;
-            font-size: 15px;
-            color: #000;
-        }
-        .handlemodel{
-            background-color: #f2f2f2;
+            font-size: 13px;
+            color: #d8ccbb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            strong{
+                font-size: 15px;
+                color: #475669;
+            }
         }
         .el-aside {
             color: #333;
         } 
+        .cell{
+            text-align: center;
+        }
         .el-footer {
             background-color: #18c79c;
             color: #fff;
